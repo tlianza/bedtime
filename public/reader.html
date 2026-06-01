@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Bedtime — Reading</title>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+	<body>
+		<!-- Before we start, a simple prompt (also satisfies the browser gesture
+		     requirement before requesting camera + screen). -->
+		<div class="overlay-start" id="overlay">
+			<div class="card">
+				<h1>Ready to read?</h1>
+				<p class="sub">
+					You'll be asked to share your <strong>camera</strong>, then to pick the
+					<strong>book window/tab</strong> to share.
+				</p>
+				<button id="start">Start reading</button>
+				<p class="hint">Tip: open your book in Kindle Cloud Reader first, then share that tab.</p>
+			</div>
+		</div>
+
+		<div class="reader-grid">
+			<!-- The kids' faces (so you can see reactions) -->
+			<div id="kids"></div>
+
+			<!-- Toolbar: your self-view + the link to send the kids -->
+			<div class="reader-bar">
+				<video id="selfcam" autoplay playsinline muted></video>
+				<div class="grow">
+					<input id="viewerlink" type="text" readonly placeholder="kid link will appear here" />
+					<div class="hint" id="status">Not connected yet.</div>
+				</div>
+				<button id="copy" class="secondary">Copy link</button>
+			</div>
+		</div>
+
+		<script type="module" src="/reader.js"></script>
+	</body>
+</html>

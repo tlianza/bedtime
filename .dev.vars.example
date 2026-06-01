@@ -1,0 +1,4 @@
+# Copy to .dev.vars (which is gitignored) for `wrangler dev`.
+# Get these from the Cloudflare dashboard: Realtime -> SFU -> your app.
+REALTIME_APP_ID=your_app_id_here
+REALTIME_APP_SECRET=your_app_secret_here

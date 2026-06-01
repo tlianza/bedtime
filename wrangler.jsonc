@@ -1,0 +1,28 @@
+{
+  // Cloudflare Worker config. The Worker does two jobs:
+  //   1. Serves the static front-end in ./public (ASSETS binding).
+  //   2. Proxies the Cloudflare Realtime SFU API so the App Secret never
+  //      reaches the browser, and routes the room WebSocket to a Durable Object.
+  "name": "bedtime",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-05-01",
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // The "room" — one Durable Object instance per room id, holding the live
+  // roster of who is connected and which SFU tracks they are publishing.
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+
+  // REALTIME_APP_ID is not secret, but the SECRET must be set with:
+  //   npx wrangler secret put REALTIME_APP_SECRET
+  // For `wrangler dev`, put both in a .dev.vars file (see README / .dev.vars.example).
+  "vars": {
+    "REALTIME_APP_ID": "07f3ccd29a2bb4cada14c448d960980f"
+  }
+}

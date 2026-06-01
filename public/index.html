@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Bedtime Stories</title>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+	<body>
+		<div class="center">
+			<div class="card">
+				<h1>📖 Bedtime Stories</h1>
+				<p class="sub">Read to your kids from anywhere.</p>
+
+				<label for="room">Room name</label>
+				<input id="room" type="text" value="storytime" autocomplete="off" />
+
+				<button id="start">Start reading (parent)</button>
+				<button id="join" class="secondary">Join as a kid</button>
+				<p class="hint">
+					Parents: start the room, then copy the kid link from the toolbar and send it.
+				</p>
+			</div>
+		</div>
+
+		<script>
+			const roomInput = document.getElementById('room')
+			const slug = () => encodeURIComponent(roomInput.value.trim() || 'storytime')
+			document.getElementById('start').onclick = () => {
+				location.href = `/reader.html?room=${slug()}`
+			}
+			document.getElementById('join').onclick = () => {
+				location.href = `/viewer.html?room=${slug()}`
+			}
+		</script>
+	</body>
+</html>

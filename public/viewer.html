@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Bedtime Story</title>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+	<body>
+		<!-- Book fills the screen; the reader's face sits in the corner. -->
+		<div class="stage">
+			<video id="book" autoplay playsinline></video>
+			<video id="readerface" class="pip" autoplay playsinline muted></video>
+		</div>
+
+		<!-- iPad/Safari needs a tap before camera + audio playback are allowed. -->
+		<div class="overlay-start" id="overlay">
+			<div class="card">
+				<h1>📖 Story time!</h1>
+				<p class="sub">Tap to join. You'll share your camera so the reader can see you.</p>
+				<button id="start">Tap to join</button>
+			</div>
+		</div>
+
+		<script type="module" src="/viewer.js"></script>
+	</body>
+</html>
