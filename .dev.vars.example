@@ -2,3 +2,9 @@
 # Get these from the Cloudflare dashboard: Realtime -> SFU -> your app.
 REALTIME_APP_ID=your_app_id_here
 REALTIME_APP_SECRET=your_app_secret_here
+
+# Optional: Cloudflare TURN (relay fallback for restrictive networks).
+# Without these, connections still work via STUN; only the relay fallback is off.
+# Create a TURN key in dash: Realtime -> TURN.
+TURN_KEY_ID=your_turn_key_id_here
+TURN_KEY_API_TOKEN=your_turn_key_api_token_here

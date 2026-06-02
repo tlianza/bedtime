@@ -28,9 +28,22 @@ export class SFUClient {
 		return text ? JSON.parse(text) : {}
 	}
 
+	async _fetchIceServers() {
+		try {
+			const res = await fetch('/api/turn')
+			if (res.ok) {
+				const data = await res.json()
+				if (data.iceServers && data.iceServers.length) return data.iceServers
+			}
+		} catch {
+			// fall through to STUN-only
+		}
+		return [{ urls: 'stun:stun.cloudflare.com:3478' }]
+	}
+
 	async createSession() {
 		this.pc = new RTCPeerConnection({
-			iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }],
+			iceServers: await this._fetchIceServers(),
 			bundlePolicy: 'max-bundle',
 		})
 

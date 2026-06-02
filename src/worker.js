@@ -29,6 +29,11 @@ export default {
 			return env.ROOM.get(id).fetch(request)
 		}
 
+		// --- TURN credentials (short-lived, minted server-side) ---
+		if (pathname === '/api/turn') {
+			return turnCredentials(env)
+		}
+
 		// --- Realtime SFU API proxy ---
 		if (pathname === '/api/sessions/new') {
 			return proxySFU(env, request, 'POST', '/sessions/new')
@@ -68,6 +73,43 @@ async function proxySFU(env, request, method, path) {
 		status: res.status,
 		headers: { 'Content-Type': 'application/json' },
 	})
+}
+
+// Mints short-lived TURN credentials for the browser. Without TURN configured,
+// returns STUN-only — direct/STUN connections still work; only the relay
+// fallback for restrictive networks is missing. The TURN API token never
+// reaches the client.
+const STUN_ONLY = [{ urls: ['stun:stun.cloudflare.com:3478'] }]
+
+async function turnCredentials(env) {
+	if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) {
+		return json({ iceServers: STUN_ONLY })
+	}
+	try {
+		const res = await fetch(
+			`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`,
+			{
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${env.TURN_KEY_API_TOKEN}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ ttl: 3600 }),
+			}
+		)
+		if (!res.ok) return json({ iceServers: STUN_ONLY })
+		const data = await res.json()
+		// Drop port-53 URLs: browsers block port 53 and would wait on a timeout.
+		const iceServers = (data.iceServers || [])
+			.map((s) => ({
+				...s,
+				urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => !/:53(\?|$)/.test(u)),
+			}))
+			.filter((s) => s.urls.length)
+		return json({ iceServers: iceServers.length ? iceServers : STUN_ONLY })
+	} catch {
+		return json({ iceServers: STUN_ONLY })
+	}
 }
 
 function json(obj, status = 200) {
