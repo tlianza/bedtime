@@ -11,8 +11,6 @@ export class SFUClient {
 	constructor() {
 		this.pc = null
 		this.sessionId = null
-		// Map<mid, {participantId, trackName}> so ontrack can route incoming media.
-		this.midToTrack = new Map()
 		// Called for each remote track that arrives: (info, MediaStreamTrack)
 		this.onRemoteTrack = null
 		// Called with human-readable progress strings during connection setup.
@@ -61,10 +59,10 @@ export class SFUClient {
 
 		this.pc = new RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' })
 
+		// For visibility only — actual routing happens in pullTracks via mid, which
+		// is reliable across browsers (Safari often omits event.transceiver here).
 		this.pc.addEventListener('track', (event) => {
-			const mid = event.transceiver && event.transceiver.mid
-			const info = this.midToTrack.get(mid)
-			if (this.onRemoteTrack) this.onRemoteTrack(info, event.track)
+			console.debug('[sfu] ontrack', event.track.kind, event.track.id)
 		})
 
 		this._status('Creating session…')
@@ -105,20 +103,30 @@ export class SFUClient {
 			})),
 		})
 
-		// Record mid -> track info BEFORE applying the offer, so the 'track'
-		// event (which fires during setRemoteDescription) can route correctly.
-		for (const t of data.tracks || []) {
-			if (t.mid != null) {
-				this.midToTrack.set(String(t.mid), { participantId, trackName: t.trackName })
-			}
-		}
-
 		if (data.requiresImmediateRenegotiation) {
 			await this.pc.setRemoteDescription(new RTCSessionDescription(data.sessionDescription))
 			await this.pc.setLocalDescription(await this.pc.createAnswer())
 			await this._api(`/sessions/${this.sessionId}/renegotiate`, 'PUT', {
 				sessionDescription: { type: 'answer', sdp: this.pc.localDescription.sdp },
 			})
+		}
+
+		// Resolve each pulled track straight from the peer connection by its mid
+		// (the SFU tells us which mid carries each track). This avoids relying on
+		// the 'track' event's transceiver, which Safari/iOS frequently omits.
+		for (const t of data.tracks || []) {
+			if (t.errorCode || t.error) {
+				console.warn('[sfu] pull track error', t.trackName, t.errorCode || t.error, t.errorDescription || '')
+				continue
+			}
+			const mid = t.mid != null ? String(t.mid) : null
+			const transceiver = mid != null && this.pc.getTransceivers().find((tr) => tr.mid === mid)
+			const track = transceiver && transceiver.receiver && transceiver.receiver.track
+			if (track) {
+				if (this.onRemoteTrack) this.onRemoteTrack({ participantId, trackName: t.trackName }, track)
+			} else {
+				console.warn('[sfu] could not resolve pulled track', t.trackName, 'mid', mid)
+			}
 		}
 	}
 

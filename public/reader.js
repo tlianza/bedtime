@@ -36,13 +36,13 @@ sfu.onRemoteTrack = (info, track) => {
 		el.autoplay = true
 		el.playsInline = true
 		// not muted — we want to hear the kids
-		const stream = new MediaStream()
-		el.srcObject = stream
 		kids.appendChild(el)
-		entry = { el, stream }
+		entry = { el, stream: new MediaStream() }
 		kidStreams.set(info.participantId, entry)
 	}
 	entry.stream.addTrack(track)
+	entry.el.srcObject = entry.stream // re-assign so Safari repaints
+	entry.el.play().catch(() => {})
 }
 
 startBtn.onclick = async () => {

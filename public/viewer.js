@@ -27,10 +27,6 @@ sfu.onStatus = (m) => {
 }
 let pulledReader = false
 
-book.srcObject = new MediaStream()
-readerface.srcObject = new MediaStream()
-readeraudio.srcObject = new MediaStream()
-
 function showVideoBook() {
 	bookpage.hidden = true
 	book.hidden = false
@@ -41,16 +37,23 @@ function showPageBook() {
 	bookpage.hidden = false
 }
 
+// Add a track to an element's stream and re-assign srcObject so Safari repaints.
+function attach(el, track) {
+	const s = el.srcObject instanceof MediaStream ? el.srcObject : new MediaStream()
+	s.addTrack(track)
+	el.srcObject = s
+	if (el.play) el.play().catch(() => {})
+}
+
 sfu.onRemoteTrack = (info, track) => {
 	if (!info) return
 	if (info.trackName === 'screen') {
-		book.srcObject.addTrack(track)
+		attach(book, track)
 		showVideoBook()
 	} else if (info.trackName === 'cam') {
-		readerface.srcObject.addTrack(track)
+		attach(readerface, track)
 	} else if (info.trackName === 'mic') {
-		readeraudio.srcObject.addTrack(track)
-		readeraudio.play().catch(() => {})
+		attach(readeraudio, track)
 	}
 }
 

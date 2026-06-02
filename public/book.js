@@ -146,12 +146,13 @@ sfu.onRemoteTrack = (info, track) => {
 		const el = document.createElement('video')
 		el.autoplay = true
 		el.playsInline = true
-		el.srcObject = new MediaStream()
 		kids.appendChild(el)
-		entry = { el, stream: el.srcObject }
+		entry = { el, stream: new MediaStream() }
 		kidStreams.set(info.participantId, entry)
 	}
 	entry.stream.addTrack(track)
+	entry.el.srcObject = entry.stream // re-assign so Safari repaints
+	entry.el.play().catch(() => {})
 }
 
 startBtn.onclick = async () => {
