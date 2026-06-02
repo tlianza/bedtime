@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Bedtime — Reading (book file)</title>
+		<link rel="stylesheet" href="/style.css" />
+		<!-- pdf.js (for PDF books). Pinned UMD build; exposes window.pdfjsLib. -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	</head>
+	<body>
+		<!-- Setup: pick a book file, then start (the tap also unlocks camera/mic). -->
+		<div class="overlay-start" id="overlay">
+			<div class="card">
+				<h1>📖 Read from a book file</h1>
+				<p class="sub">Works on iPad. Choose a <strong>PDF</strong> or one or more <strong>page images</strong>.</p>
+				<input id="file" type="file" accept="application/pdf,image/*" multiple />
+				<button id="start" disabled>Start reading</button>
+				<p class="hint" id="setup-hint">Pick a file to continue.</p>
+			</div>
+		</div>
+
+		<div class="reader-grid book-reader">
+			<!-- The page you're reading (also what gets sent to the kids) -->
+			<div class="page-wrap">
+				<canvas id="page"></canvas>
+				<div class="page-controls">
+					<button id="prev" class="secondary">‹ Prev</button>
+					<span id="pagenum">–</span>
+					<button id="next" class="secondary">Next ›</button>
+				</div>
+			</div>
+
+			<!-- Toolbar: kids' faces, your self-view, the link to send -->
+			<div class="reader-bar">
+				<video id="selfcam" autoplay playsinline muted></video>
+				<div id="kids" class="kids-inline"></div>
+				<div class="grow">
+					<input id="viewerlink" type="text" readonly placeholder="kid link will appear here" />
+					<div class="hint" id="status">Not connected yet.</div>
+				</div>
+				<button id="copy" class="secondary">Copy link</button>
+			</div>
+		</div>
+
+		<script type="module" src="/book.js"></script>
+	</body>
+</html>

@@ -60,24 +60,26 @@ startBtn.onclick = async () => {
 		connectRoom(
 			room,
 			{ id: myId, role: 'reader', name: 'Reader', sessionId: sfu.sessionId, tracks: ['screen', 'cam', 'mic'] },
-			(participants) => {
-				const viewers = participants.filter((p) => p.role === 'viewer' && p.id !== myId)
-				for (const v of viewers) {
-					if (pulledViewers.has(v.id)) continue
-					pulledViewers.add(v.id)
-					sfu.pullTracks(v.id, v.sessionId, ['cam', 'mic']).catch((err) => {
-						console.error('pull viewer failed', err)
-						pulledViewers.delete(v.id)
-					})
-				}
-				status.textContent = viewers.length
-					? `${viewers.length} kid${viewers.length > 1 ? 's' : ''} connected.`
-					: 'Waiting for kids to join…'
+			{
+				onRoster: (participants) => {
+					const viewers = participants.filter((p) => p.role === 'viewer' && p.id !== myId)
+					for (const v of viewers) {
+						if (pulledViewers.has(v.id)) continue
+						pulledViewers.add(v.id)
+						sfu.pullTracks(v.id, v.sessionId, ['cam', 'mic']).catch((err) => {
+							console.error('pull viewer failed', err)
+							pulledViewers.delete(v.id)
+						})
+					}
+					status.textContent = viewers.length
+						? `${viewers.length} kid${viewers.length > 1 ? 's' : ''} connected.`
+						: 'Waiting for kids to join…'
+				},
 			}
 		)
 
 		overlay.style.display = 'none'
-		const viewerUrl = `${location.origin}/viewer.html?room=${encodeURIComponent(room)}`
+		const viewerUrl = `${location.origin}/viewer?room=${encodeURIComponent(room)}`
 		linkInput.value = viewerUrl
 	} catch (err) {
 		console.error(err)

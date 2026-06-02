@@ -5,6 +5,18 @@ Read bedtime stories to your kids when you're away. You share your face + the bo
 with your face in the corner — and you can see and hear them too. Two-way, sub-second
 latency, built on [Cloudflare Realtime](https://developers.cloudflare.com/realtime/sfu/).
 
+## Two ways to read
+
+The parent can project the book in either of two modes; the kid's page adapts automatically.
+
+- **Screen-share mode** (`/reader`) — share your Kindle Cloud Reader tab. Needs a
+  **Mac or laptop** (browsers on iPad/iOS can't screen-share). The book is sent as a live
+  video track.
+- **Book-file mode** (`/book`) — load a **PDF or page images** into the app and tap to turn
+  pages; each page is sent to the kids as an image over the room channel. **Works on iPad**
+  (and everywhere), gives crisp text, and avoids Kindle DRM. You supply the pages (scans /
+  photos of books you own, public-domain PDFs, or purchased PDFs).
+
 ## How it works
 
 - **Cloudflare Realtime SFU** carries the video/audio. Each person is one WebRTC session;

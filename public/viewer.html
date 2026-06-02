@@ -7,10 +7,14 @@
 		<link rel="stylesheet" href="/style.css" />
 	</head>
 	<body>
-		<!-- Book fills the screen; the reader's face sits in the corner. -->
+		<!-- The book fills the screen. It's either a live screen-share <video>
+		     (laptop reader) or a synced page <img> (iPad / book-file reader) —
+		     whichever the reader is using. The reader's face sits in the corner. -->
 		<div class="stage">
 			<video id="book" autoplay playsinline></video>
+			<img id="bookpage" alt="story page" hidden />
 			<video id="readerface" class="pip" autoplay playsinline muted></video>
+			<audio id="readeraudio" autoplay></audio>
 		</div>
 
 		<!-- iPad/Safari needs a tap before camera + audio playback are allowed. -->
