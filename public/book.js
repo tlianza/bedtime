@@ -29,6 +29,18 @@ const status = document.getElementById('status')
 
 const MAX_W = 1200 // cap rendered page width to keep the sent image small
 
+// pdf.js needs its worker URL set explicitly, or parsing hangs/falls back to a
+// slow main-thread path (worst on flaky connections).
+if (window.pdfjsLib) {
+	window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+		'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+}
+
+// Show progress/errors on the overlay (the toolbar #status is hidden behind it).
+function setupMsg(text) {
+	setupHint.textContent = text
+}
+
 const sfu = new SFUClient()
 let roomConn = null
 const pulledViewers = new Set()
@@ -45,8 +57,13 @@ fileInput.onchange = async () => {
 	if (!files.length) return
 	pdfDoc = null
 	imageUrls = []
+	startBtn.disabled = true
 	try {
 		if (files.length === 1 && files[0].type === 'application/pdf') {
+			if (!window.pdfjsLib) {
+				throw new Error('PDF library failed to load (check your connection). Try reloading, or use page images instead.')
+			}
+			setupMsg('Reading PDF…')
 			const buf = await files[0].arrayBuffer()
 			pdfDoc = await window.pdfjsLib.getDocument({ data: buf }).promise
 			pageCount = pdfDoc.numPages
@@ -139,12 +156,14 @@ sfu.onRemoteTrack = (info, track) => {
 startBtn.onclick = async () => {
 	startBtn.disabled = true
 	try {
+		setupMsg('Requesting camera & microphone…')
 		const camMic = await navigator.mediaDevices.getUserMedia({
 			video: { facingMode: 'user' },
 			audio: true,
 		})
 		selfcam.srcObject = camMic
 
+		setupMsg('Connecting… (this can take a few seconds)')
 		status.textContent = 'Connecting…'
 		await sfu.createSession()
 		await sfu.pushTracks([
@@ -178,6 +197,7 @@ startBtn.onclick = async () => {
 		await renderPage() // show + send the first page
 	} catch (err) {
 		console.error(err)
+		setupMsg('Could not start: ' + err.message)
 		status.textContent = 'Error: ' + err.message
 		startBtn.disabled = false
 	}
