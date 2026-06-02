@@ -20,6 +20,10 @@ const copyBtn = document.getElementById('copy')
 const status = document.getElementById('status')
 
 const sfu = new SFUClient()
+const overlaySub = overlay.querySelector('.sub')
+sfu.onStatus = (m) => {
+	if (overlaySub) overlaySub.textContent = m
+}
 const pulledViewers = new Set() // participant ids we've already pulled
 const kidStreams = new Map() // participantId -> { el, stream }
 

@@ -42,6 +42,7 @@ function setupMsg(text) {
 }
 
 const sfu = new SFUClient()
+sfu.onStatus = setupMsg // show connection progress on the overlay
 let roomConn = null
 const pulledViewers = new Set()
 const kidStreams = new Map()

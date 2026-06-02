@@ -15,6 +15,12 @@ export class SFUClient {
 		this.midToTrack = new Map()
 		// Called for each remote track that arrives: (info, MediaStreamTrack)
 		this.onRemoteTrack = null
+		// Called with human-readable progress strings during connection setup.
+		this.onStatus = null
+	}
+
+	_status(msg) {
+		if (this.onStatus) this.onStatus(msg)
 	}
 
 	async _api(path, method, body) {
@@ -42,10 +48,18 @@ export class SFUClient {
 	}
 
 	async createSession() {
-		this.pc = new RTCPeerConnection({
-			iceServers: await this._fetchIceServers(),
-			bundlePolicy: 'max-bundle',
-		})
+		this._status('Finding the best network path…')
+		const iceServers = await this._fetchIceServers()
+		const hasRelay = iceServers.some((s) =>
+			[].concat(s.urls).some((u) => u.startsWith('turn:') || u.startsWith('turns:'))
+		)
+		this._status(
+			hasRelay
+				? 'Network path ready — relay (TURN) available ✓'
+				: 'Network path ready — direct/STUN only (no relay)'
+		)
+
+		this.pc = new RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' })
 
 		this.pc.addEventListener('track', (event) => {
 			const mid = event.transceiver && event.transceiver.mid
@@ -53,6 +67,7 @@ export class SFUClient {
 			if (this.onRemoteTrack) this.onRemoteTrack(info, event.track)
 		})
 
+		this._status('Creating session…')
 		const data = await this._api('/sessions/new', 'POST')
 		this.sessionId = data.sessionId
 	}
@@ -64,6 +79,7 @@ export class SFUClient {
 		)
 		await this.pc.setLocalDescription(await this.pc.createOffer())
 
+		this._status('Negotiating audio/video…')
 		const data = await this._api(`/sessions/${this.sessionId}/tracks/new`, 'POST', {
 			sessionDescription: { type: 'offer', sdp: this.pc.localDescription.sdp },
 			tracks: tracks.map((t, i) => ({
@@ -74,7 +90,9 @@ export class SFUClient {
 		})
 
 		await this.pc.setRemoteDescription(new RTCSessionDescription(data.sessionDescription))
+		this._status('Establishing connection…')
 		await this._waitConnected()
+		this._status('Connected ✓')
 	}
 
 	// Pull one or more named tracks published by a remote session.
@@ -107,19 +125,34 @@ export class SFUClient {
 	_waitConnected() {
 		if (this.pc.connectionState === 'connected') return Promise.resolve()
 		return new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => reject(new Error('WebRTC connection timed out')), 15000)
-			const check = () => {
+			const timeout = setTimeout(() => {
+				cleanup()
+				reject(
+					new Error(
+						'connection timed out — your network may be blocking WebRTC. Turning on TURN relay usually fixes this.'
+					)
+				)
+			}, 20000)
+			const cleanup = () => {
+				clearTimeout(timeout)
+				this.pc.removeEventListener('connectionstatechange', report)
+				this.pc.removeEventListener('iceconnectionstatechange', report)
+			}
+			const report = () => {
+				// Surface the live ICE state so a stall is visible (e.g. stuck on
+				// "checking" usually means NAT/firewall — TURN relay is the fix).
+				this._status('Connecting… (' + this.pc.iceConnectionState + ')')
 				const s = this.pc.connectionState
 				if (s === 'connected') {
-					clearTimeout(timeout)
-					this.pc.removeEventListener('connectionstatechange', check)
+					cleanup()
 					resolve()
 				} else if (s === 'failed') {
-					clearTimeout(timeout)
-					reject(new Error('WebRTC connection failed'))
+					cleanup()
+					reject(new Error('connection failed — network blocked WebRTC (TURN relay should help)'))
 				}
 			}
-			this.pc.addEventListener('connectionstatechange', check)
+			this.pc.addEventListener('connectionstatechange', report)
+			this.pc.addEventListener('iceconnectionstatechange', report)
 		})
 	}
 }

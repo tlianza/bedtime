@@ -21,6 +21,10 @@ const readerface = document.getElementById('readerface')
 const readeraudio = document.getElementById('readeraudio')
 
 const sfu = new SFUClient()
+const overlaySub = overlay.querySelector('.sub')
+sfu.onStatus = (m) => {
+	if (overlaySub) overlaySub.textContent = m
+}
 let pulledReader = false
 
 book.srcObject = new MediaStream()
