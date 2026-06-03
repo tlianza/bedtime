@@ -152,17 +152,18 @@ button:disabled {
 	background: #111;
 }
 
-/* Small "what you're sharing" preview tile in the reader's kids area. */
+/* Small "what you're sharing" preview tile, placed to the right of the kids. */
 #kids .share-tile {
 	margin: 0;
 	position: relative;
 	align-self: center;
+	order: 1; /* after the kid tiles (which keep the default order 0) */
 }
 
 #kids .share-tile video {
 	width: 240px;
-	aspect-ratio: 16 / 9;
-	object-fit: contain;
+	height: auto; /* keep the shared content's real aspect ratio */
+	display: block;
 	background: #000;
 	border: 1px solid #2c3a59;
 	border-radius: 10px;
