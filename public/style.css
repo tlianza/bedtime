@@ -127,6 +127,20 @@ button:disabled {
 	z-index: 10;
 }
 
+/* "Tap for sound" — shown only when audio autoplay is blocked (iOS). */
+.sound-btn {
+	position: fixed;
+	left: 50%;
+	bottom: 24px;
+	transform: translateX(-50%);
+	width: auto;
+	margin: 0;
+	z-index: 20;
+	font-size: 1.1rem;
+	padding: 14px 26px;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
 /* --- Reader: kids' faces are the main view, book + self are small --- */
 .reader-grid {
 	position: fixed;

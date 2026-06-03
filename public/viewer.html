@@ -17,6 +17,10 @@
 			<audio id="readeraudio" autoplay></audio>
 		</div>
 
+		<!-- Shown only if the browser blocks audio autoplay (common on iOS). One
+		     tap is a fresh user gesture that unblocks sound. -->
+		<button id="soundbtn" class="sound-btn" hidden>🔊 Tap for sound</button>
+
 		<!-- iPad/Safari needs a tap before camera + audio playback are allowed. -->
 		<div class="overlay-start" id="overlay">
 			<div class="card">

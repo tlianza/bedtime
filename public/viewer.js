@@ -19,6 +19,7 @@ const book = document.getElementById('book') // screen-share video
 const bookpage = document.getElementById('bookpage') // synced page image
 const readerface = document.getElementById('readerface')
 const readeraudio = document.getElementById('readeraudio')
+const soundBtn = document.getElementById('soundbtn')
 
 const sfu = new SFUClient()
 const overlaySub = overlay.querySelector('.sub')
@@ -30,7 +31,7 @@ let currentReaderId = null // id of the reader session we're currently pulling
 function showVideoBook() {
 	bookpage.hidden = true
 	book.hidden = false
-	book.play().catch(() => {})
+	tryPlay(book)
 }
 function showPageBook() {
 	book.hidden = true
@@ -44,12 +45,26 @@ function resetReaderMedia() {
 	readeraudio.srcObject = new MediaStream()
 }
 
+// Try to play an element; if the browser blocks it (iOS autoplay policy),
+// reveal the "Tap for sound" button so the kid can unblock with one tap.
+function tryPlay(el) {
+	if (!el.play) return
+	const p = el.play()
+	if (p && p.catch) p.catch(() => (soundBtn.hidden = false))
+}
+
+soundBtn.onclick = () => {
+	// A fresh user gesture — retry every media element, then hide the button.
+	;[readeraudio, book, readerface].forEach((el) => el.play && el.play().catch(() => {}))
+	soundBtn.hidden = true
+}
+
 // Add a track to an element's stream and re-assign srcObject so Safari repaints.
 function attach(el, track) {
 	const s = el.srcObject instanceof MediaStream ? el.srcObject : new MediaStream()
 	s.addTrack(track)
 	el.srcObject = s
-	if (el.play) el.play().catch(() => {})
+	tryPlay(el)
 }
 
 sfu.onRemoteTrack = (info, track) => {
