@@ -179,6 +179,15 @@ startBtn.onclick = async () => {
 			{
 				onRoster: (participants) => {
 					const viewers = participants.filter((p) => p.role === 'viewer' && p.id !== myId)
+					const present = new Set(viewers.map((v) => v.id))
+					// Remove tiles for kids who left or reloaded (drops frozen video).
+					for (const [id, entry] of kidStreams) {
+						if (!present.has(id)) {
+							entry.el.remove()
+							kidStreams.delete(id)
+							pulledViewers.delete(id)
+						}
+					}
 					for (const v of viewers) {
 						if (pulledViewers.has(v.id)) continue
 						pulledViewers.add(v.id)

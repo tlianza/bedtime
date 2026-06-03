@@ -25,7 +25,7 @@ const overlaySub = overlay.querySelector('.sub')
 sfu.onStatus = (m) => {
 	if (overlaySub) overlaySub.textContent = m
 }
-let pulledReader = false
+let currentReaderId = null // id of the reader session we're currently pulling
 
 function showVideoBook() {
 	bookpage.hidden = true
@@ -35,6 +35,13 @@ function showVideoBook() {
 function showPageBook() {
 	book.hidden = true
 	bookpage.hidden = false
+}
+
+// Drop the previous reader's (now-frozen) tracks before pulling a new reader.
+function resetReaderMedia() {
+	book.srcObject = new MediaStream()
+	readerface.srcObject = new MediaStream()
+	readeraudio.srcObject = new MediaStream()
 }
 
 // Add a track to an element's stream and re-assign srcObject so Safari repaints.
@@ -77,14 +84,20 @@ startBtn.onclick = async () => {
 			{
 				onRoster: (participants) => {
 					const reader = participants.find((p) => p.role === 'reader')
-					if (reader && !pulledReader) {
-						pulledReader = true
-						// Pull exactly the tracks the reader advertises (screen mode
-						// has 'screen'; book-file mode has only 'cam' + 'mic').
+					if (!reader) {
+						// Reader left (e.g. reloading). Forget them so we re-pull when
+						// they come back; keep the last frame on screen meanwhile.
+						currentReaderId = null
+						return
+					}
+					if (reader.id !== currentReaderId) {
+						// New or reloaded reader — switch to their fresh session.
+						currentReaderId = reader.id
+						resetReaderMedia()
 						const names = (reader.tracks || []).filter((n) => ['screen', 'cam', 'mic'].includes(n))
 						sfu.pullTracks(reader.id, reader.sessionId, names).catch((err) => {
 							console.error('pull reader failed', err)
-							pulledReader = false
+							currentReaderId = null // allow a retry on the next roster update
 						})
 					}
 				},
