@@ -22,8 +22,14 @@
 		</div>
 
 		<div class="reader-grid">
-			<!-- The kids' faces (so you can see reactions) -->
-			<div id="kids"></div>
+			<!-- The kids' faces (so you can see reactions), plus a small preview
+			     of the book you're sharing so you can read along. -->
+			<div id="kids">
+				<figure class="share-tile" id="share-tile" hidden>
+					<video id="screenpreview" autoplay playsinline muted></video>
+					<figcaption>What you're sharing</figcaption>
+				</figure>
+			</div>
 
 			<!-- Toolbar: your self-view + the link to send the kids -->
 			<div class="reader-bar">

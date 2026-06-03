@@ -15,6 +15,8 @@ const overlay = document.getElementById('overlay')
 const startBtn = document.getElementById('start')
 const selfcam = document.getElementById('selfcam')
 const kids = document.getElementById('kids')
+const screenpreview = document.getElementById('screenpreview')
+const shareTile = document.getElementById('share-tile')
 const linkInput = document.getElementById('viewerlink')
 const copyBtn = document.getElementById('copy')
 const status = document.getElementById('status')
@@ -52,6 +54,13 @@ startBtn.onclick = async () => {
 		const camMic = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 		selfcam.srcObject = camMic
 		const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+		// Show what you're sharing back to yourself so you can read along.
+		screenpreview.srcObject = display
+		shareTile.hidden = false
+		// If you stop sharing (browser "Stop sharing" button), hide the preview.
+		display.getVideoTracks()[0].addEventListener('ended', () => {
+			shareTile.hidden = true
+		})
 
 		status.textContent = 'Connecting…'
 		await sfu.createSession()
