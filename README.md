@@ -95,9 +95,11 @@ point a webcam at a physical copy, or share a PDF/photos of the pages instead.
 
 ## Status / TODO
 
-- [ ] **TURN** for tricky home networks. The SFU is a public server so STUN usually
-      suffices, but adding Cloudflare TURN credentials would make connections more robust.
-- [ ] Reconnect/cleanup when a track drops (SFU garbage-collects tracks after 30s idle).
+- [x] **TURN** relay for tricky networks (Cloudflare TURN; falls back to STUN if unset).
+- [x] Recover from reloads and network drops (roster-diff re-pull + auto session rebuild
+      with a "Reconnecting…" banner).
+- [x] iOS audio-autoplay fallback ("Tap for sound") on the viewer.
+- [x] Reader screen-share self-preview ("What you're sharing").
 - [ ] Signed/expiring room links (the room name is currently the only access control).
 - [ ] Mute/camera toggle buttons; a "raise hand" or page-turn ping would be cute.
-```
+- [ ] Tidy dead transceivers that accumulate across many reconnects (cosmetic).
