@@ -7,6 +7,8 @@
 //
 // API flow reference: https://developers.cloudflare.com/realtime/sfu/
 
+import { breadcrumb, logEvent, captureError } from './monitor.js'
+
 export class SFUClient {
 	constructor() {
 		this.pc = null
@@ -74,14 +76,22 @@ export class SFUClient {
 			console.debug('[sfu] ontrack', event.track.kind, event.track.id)
 		})
 
+		this.pc.addEventListener('iceconnectionstatechange', () => {
+			breadcrumb('ice ' + this.pc.iceConnectionState)
+		})
+
 		// Detect drops and auto-rebuild the session (only once we've connected at
 		// least once, so this doesn't interfere with the initial-connect flow).
 		this.pc.addEventListener('connectionstatechange', () => {
 			const s = this.pc.connectionState
+			breadcrumb('pc ' + s)
 			if (s === 'connected') {
 				clearTimeout(this._reconnectTimer)
 				if (this._connectedOnce && this.onConnectionChange) this.onConnectionChange('connected')
 			} else if ((s === 'failed' || s === 'disconnected') && this._connectedOnce) {
+				// This is the "it went black" moment — capture it so we can see how
+				// often it happens and whether the reconnect below recovers it.
+				logEvent('webrtc connection ' + s, { ice: this.pc.iceConnectionState }, 'warning')
 				this._scheduleReconnect()
 			}
 		})
@@ -131,6 +141,7 @@ export class SFUClient {
 	async _reconnect() {
 		if (this._reconnecting) return
 		this._reconnecting = true
+		breadcrumb('reconnect: rebuilding session')
 		if (this.onConnectionChange) this.onConnectionChange('reconnecting')
 		try {
 			try {
@@ -142,10 +153,11 @@ export class SFUClient {
 			await this.createSession()
 			if (this._pushed.length) await this.pushTracks(this._pushed)
 			this._reconnecting = false
+			logEvent('webrtc reconnect recovered', { sessionId: this.sessionId }, 'info')
 			if (this.onConnectionChange) this.onConnectionChange('connected')
 			if (this.onReconnected) await this.onReconnected(this.sessionId)
 		} catch (err) {
-			console.error('[sfu] reconnect failed, retrying', err)
+			captureError(err, { phase: 'reconnect' })
 			this._reconnecting = false
 			this._reconnectTimer = setTimeout(() => {
 				this._reconnectTimer = null
@@ -177,7 +189,7 @@ export class SFUClient {
 		// the 'track' event's transceiver, which Safari/iOS frequently omits.
 		for (const t of data.tracks || []) {
 			if (t.errorCode || t.error) {
-				console.warn('[sfu] pull track error', t.trackName, t.errorCode || t.error, t.errorDescription || '')
+				logEvent('pull track error', { trackName: t.trackName, code: t.errorCode || t.error }, 'warning')
 				continue
 			}
 			const mid = t.mid != null ? String(t.mid) : null
@@ -186,7 +198,7 @@ export class SFUClient {
 			if (track) {
 				if (this.onRemoteTrack) this.onRemoteTrack({ participantId, trackName: t.trackName }, track)
 			} else {
-				console.warn('[sfu] could not resolve pulled track', t.trackName, 'mid', mid)
+				logEvent('could not resolve pulled track', { trackName: t.trackName, mid }, 'warning')
 			}
 		}
 	}

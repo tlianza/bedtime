@@ -7,6 +7,23 @@
 		<link rel="stylesheet" href="/style.css" />
 		<!-- pdf.js (for PDF books). Pinned UMD build; exposes window.pdfjsLib. -->
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+		<!-- Error + connection telemetry (Sentry, CDN loader — no build step).
+		     Session Replay is force-disabled: it would record the kids/book. -->
+		<script src="https://js.sentry-cdn.com/cd29fbdcbc0115f19aecc8f35a1117ca.min.js" crossorigin="anonymous"></script>
+		<script>
+			window.Sentry &&
+				Sentry.onLoad(function () {
+					Sentry.init({
+						replaysSessionSampleRate: 0,
+						replaysOnErrorSampleRate: 0,
+						tracesSampleRate: 0,
+						environment: location.hostname.endsWith('workers.dev') ? 'production' : 'dev',
+						beforeSend: function (e) {
+							return location.hostname.endsWith('workers.dev') ? e : null
+						},
+					})
+				})
+		</script>
 	</head>
 	<body>
 		<!-- Setup: pick a book file, then start (the tap also unlocks camera/mic). -->
