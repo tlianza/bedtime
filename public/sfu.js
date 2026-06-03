@@ -15,6 +15,15 @@ export class SFUClient {
 		this.onRemoteTrack = null
 		// Called with human-readable progress strings during connection setup.
 		this.onStatus = null
+		// Called with the connection state: 'connected' | 'reconnecting' | 'lost'.
+		this.onConnectionChange = null
+		// Called after an automatic reconnect rebuilds the session: (newSessionId).
+		this.onReconnected = null
+
+		this._pushed = [] // tracks we've pushed, so we can re-push on reconnect
+		this._connectedOnce = false // only auto-reconnect after the first success
+		this._reconnecting = false
+		this._reconnectTimer = null
 	}
 
 	_status(msg) {
@@ -65,6 +74,18 @@ export class SFUClient {
 			console.debug('[sfu] ontrack', event.track.kind, event.track.id)
 		})
 
+		// Detect drops and auto-rebuild the session (only once we've connected at
+		// least once, so this doesn't interfere with the initial-connect flow).
+		this.pc.addEventListener('connectionstatechange', () => {
+			const s = this.pc.connectionState
+			if (s === 'connected') {
+				clearTimeout(this._reconnectTimer)
+				if (this._connectedOnce && this.onConnectionChange) this.onConnectionChange('connected')
+			} else if ((s === 'failed' || s === 'disconnected') && this._connectedOnce) {
+				this._scheduleReconnect()
+			}
+		})
+
 		this._status('Creating session…')
 		const data = await this._api('/sessions/new', 'POST')
 		this.sessionId = data.sessionId
@@ -72,6 +93,7 @@ export class SFUClient {
 
 	// tracks: [{ track: MediaStreamTrack, name: string }]
 	async pushTracks(tracks) {
+		this._pushed = tracks // remember for reconnect
 		const transceivers = tracks.map((t) =>
 			this.pc.addTransceiver(t.track, { direction: 'sendonly' })
 		)
@@ -90,7 +112,46 @@ export class SFUClient {
 		await this.pc.setRemoteDescription(new RTCSessionDescription(data.sessionDescription))
 		this._status('Establishing connection…')
 		await this._waitConnected()
+		this._connectedOnce = true
 		this._status('Connected ✓')
+	}
+
+	_scheduleReconnect() {
+		if (this._reconnecting || this._reconnectTimer) return
+		// Wait a moment first — 'disconnected' is often a transient blip that heals.
+		this._reconnectTimer = setTimeout(() => {
+			this._reconnectTimer = null
+			if (this.pc && this.pc.connectionState === 'connected') return
+			this._reconnect()
+		}, 2500)
+	}
+
+	// Rebuild the session from scratch and re-push our (still-live) local tracks.
+	// Re-pulling remote tracks is left to the page via onReconnected.
+	async _reconnect() {
+		if (this._reconnecting) return
+		this._reconnecting = true
+		if (this.onConnectionChange) this.onConnectionChange('reconnecting')
+		try {
+			try {
+				if (this.pc) this.pc.close()
+			} catch {
+				/* ignore */
+			}
+			this._connectedOnce = false
+			await this.createSession()
+			if (this._pushed.length) await this.pushTracks(this._pushed)
+			this._reconnecting = false
+			if (this.onConnectionChange) this.onConnectionChange('connected')
+			if (this.onReconnected) await this.onReconnected(this.sessionId)
+		} catch (err) {
+			console.error('[sfu] reconnect failed, retrying', err)
+			this._reconnecting = false
+			this._reconnectTimer = setTimeout(() => {
+				this._reconnectTimer = null
+				this._reconnect()
+			}, 3000)
+		}
 	}
 
 	// Pull one or more named tracks published by a remote session.

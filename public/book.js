@@ -26,6 +26,7 @@ const kids = document.getElementById('kids')
 const linkInput = document.getElementById('viewerlink')
 const copyBtn = document.getElementById('copy')
 const status = document.getElementById('status')
+const netbanner = document.getElementById('netbanner')
 
 const MAX_W = 1200 // cap rendered page width to keep the sent image small
 
@@ -43,9 +44,57 @@ function setupMsg(text) {
 
 const sfu = new SFUClient()
 sfu.onStatus = setupMsg // show connection progress on the overlay
+
+const me = { id: crypto.randomUUID(), role: 'reader', name: 'Reader', sessionId: null, tracks: ['cam', 'mic'] }
 let roomConn = null
-const pulledViewers = new Set()
+let lastParticipants = []
+const pulledViewers = new Map() // participantId -> sessionId we're pulling
 const kidStreams = new Map()
+
+function removeKid(id) {
+	const entry = kidStreams.get(id)
+	if (entry) entry.el.remove()
+	kidStreams.delete(id)
+	pulledViewers.delete(id)
+}
+
+// Pull each kid's tracks; re-pull when their sessionId changes (reload/reconnect).
+function syncRoster(participants) {
+	lastParticipants = participants
+	const viewers = participants.filter((p) => p.role === 'viewer' && p.id !== me.id)
+	const present = new Set(viewers.map((v) => v.id))
+	for (const id of [...kidStreams.keys()]) if (!present.has(id)) removeKid(id)
+
+	for (const v of viewers) {
+		if (pulledViewers.get(v.id) === v.sessionId) continue
+		removeKid(v.id)
+		pulledViewers.set(v.id, v.sessionId)
+		sfu.pullTracks(v.id, v.sessionId, ['cam', 'mic']).catch((err) => {
+			console.error('pull viewer failed', err)
+			if (pulledViewers.get(v.id) === v.sessionId) pulledViewers.delete(v.id)
+		})
+	}
+	status.textContent = viewers.length
+		? `${viewers.length} kid${viewers.length > 1 ? 's' : ''} connected.`
+		: 'Waiting for kids to join…'
+}
+
+sfu.onConnectionChange = (state) => {
+	if (state === 'connected') netbanner.hidden = true
+	else {
+		netbanner.textContent = 'Reconnecting…'
+		netbanner.hidden = false
+	}
+}
+
+// Session rebuilt: re-announce, re-pull every kid, and re-send the current page.
+sfu.onReconnected = (newSessionId) => {
+	me.sessionId = newSessionId
+	if (roomConn) roomConn.send({ type: 'join', ...me })
+	for (const id of [...kidStreams.keys()]) removeKid(id)
+	syncRoster(lastParticipants)
+	if (pageCount > 0) sendPage()
+}
 
 // --- Book source: either a pdf.js document or a list of image URLs ---
 let pdfDoc = null
@@ -173,35 +222,8 @@ startBtn.onclick = async () => {
 			{ track: camMic.getAudioTracks()[0], name: 'mic' },
 		])
 
-		roomConn = connectRoom(
-			room,
-			{ id: myId, role: 'reader', name: 'Reader', sessionId: sfu.sessionId, tracks: ['cam', 'mic'] },
-			{
-				onRoster: (participants) => {
-					const viewers = participants.filter((p) => p.role === 'viewer' && p.id !== myId)
-					const present = new Set(viewers.map((v) => v.id))
-					// Remove tiles for kids who left or reloaded (drops frozen video).
-					for (const [id, entry] of kidStreams) {
-						if (!present.has(id)) {
-							entry.el.remove()
-							kidStreams.delete(id)
-							pulledViewers.delete(id)
-						}
-					}
-					for (const v of viewers) {
-						if (pulledViewers.has(v.id)) continue
-						pulledViewers.add(v.id)
-						sfu.pullTracks(v.id, v.sessionId, ['cam', 'mic']).catch((err) => {
-							console.error('pull viewer failed', err)
-							pulledViewers.delete(v.id)
-						})
-					}
-					status.textContent = viewers.length
-						? `${viewers.length} kid${viewers.length > 1 ? 's' : ''} connected.`
-						: 'Waiting for kids to join…'
-				},
-			}
-		)
+		me.sessionId = sfu.sessionId
+		roomConn = connectRoom(room, me, { onRoster: syncRoster })
 
 		overlay.style.display = 'none'
 		linkInput.value = `${location.origin}/viewer?room=${encodeURIComponent(room)}`

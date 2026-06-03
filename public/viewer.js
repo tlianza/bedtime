@@ -11,7 +11,6 @@ import { connectRoom } from './room-client.js'
 
 const params = new URLSearchParams(location.search)
 const room = params.get('room') || 'storytime'
-const myId = crypto.randomUUID()
 
 const overlay = document.getElementById('overlay')
 const startBtn = document.getElementById('start')
@@ -20,13 +19,20 @@ const bookpage = document.getElementById('bookpage') // synced page image
 const readerface = document.getElementById('readerface')
 const readeraudio = document.getElementById('readeraudio')
 const soundBtn = document.getElementById('soundbtn')
+const netbanner = document.getElementById('netbanner')
 
 const sfu = new SFUClient()
 const overlaySub = overlay.querySelector('.sub')
 sfu.onStatus = (m) => {
 	if (overlaySub) overlaySub.textContent = m
 }
-let currentReaderId = null // id of the reader session we're currently pulling
+
+// Identity stays stable across reconnects; only sessionId changes. room-client
+// re-announces this object (by reference) whenever the signaling socket opens.
+const me = { id: crypto.randomUUID(), role: 'viewer', name: 'Kid', sessionId: null, tracks: ['cam', 'mic'] }
+let roomConn = null
+let lastParticipants = []
+let currentReaderSession = null // sessionId of the reader we're currently pulling
 
 function showVideoBook() {
 	bookpage.hidden = true
@@ -79,6 +85,44 @@ sfu.onRemoteTrack = (info, track) => {
 	}
 }
 
+// Pull the reader's tracks whenever their session changes (new reader, reload,
+// or their own reconnect — all of which produce a fresh sessionId).
+function syncRoster(participants) {
+	lastParticipants = participants
+	const reader = participants.find((p) => p.role === 'reader')
+	if (!reader) {
+		currentReaderSession = null // re-pull when they return
+		return
+	}
+	if (reader.sessionId !== currentReaderSession) {
+		currentReaderSession = reader.sessionId
+		resetReaderMedia()
+		const names = (reader.tracks || []).filter((n) => ['screen', 'cam', 'mic'].includes(n))
+		sfu.pullTracks(reader.id, reader.sessionId, names).catch((err) => {
+			console.error('pull reader failed', err)
+			currentReaderSession = null // allow a retry on the next roster update
+		})
+	}
+}
+
+sfu.onConnectionChange = (state) => {
+	if (state === 'connected') netbanner.hidden = true
+	else {
+		netbanner.textContent = 'Reconnecting…'
+		netbanner.hidden = false
+	}
+}
+
+// After the SFU rebuilds our session, re-announce the new sessionId (so the
+// reader re-pulls us) and re-pull the reader fresh.
+sfu.onReconnected = (newSessionId) => {
+	me.sessionId = newSessionId
+	if (roomConn) roomConn.send({ type: 'join', ...me })
+	currentReaderSession = null
+	resetReaderMedia()
+	syncRoster(lastParticipants)
+}
+
 startBtn.onclick = async () => {
 	startBtn.disabled = true
 	try {
@@ -93,37 +137,16 @@ startBtn.onclick = async () => {
 			{ track: camMic.getAudioTracks()[0], name: 'mic' },
 		])
 
-		connectRoom(
-			room,
-			{ id: myId, role: 'viewer', name: 'Kid', sessionId: sfu.sessionId, tracks: ['cam', 'mic'] },
-			{
-				onRoster: (participants) => {
-					const reader = participants.find((p) => p.role === 'reader')
-					if (!reader) {
-						// Reader left (e.g. reloading). Forget them so we re-pull when
-						// they come back; keep the last frame on screen meanwhile.
-						currentReaderId = null
-						return
-					}
-					if (reader.id !== currentReaderId) {
-						// New or reloaded reader — switch to their fresh session.
-						currentReaderId = reader.id
-						resetReaderMedia()
-						const names = (reader.tracks || []).filter((n) => ['screen', 'cam', 'mic'].includes(n))
-						sfu.pullTracks(reader.id, reader.sessionId, names).catch((err) => {
-							console.error('pull reader failed', err)
-							currentReaderId = null // allow a retry on the next roster update
-						})
-					}
-				},
-				onMessage: (msg) => {
-					if (msg.type === 'page' && msg.dataUrl) {
-						bookpage.src = msg.dataUrl
-						showPageBook()
-					}
-				},
-			}
-		)
+		me.sessionId = sfu.sessionId
+		roomConn = connectRoom(room, me, {
+			onRoster: syncRoster,
+			onMessage: (msg) => {
+				if (msg.type === 'page' && msg.dataUrl) {
+					bookpage.src = msg.dataUrl
+					showPageBook()
+				}
+			},
+		})
 
 		overlay.style.display = 'none'
 	} catch (err) {
