@@ -193,6 +193,8 @@ button:disabled {
 #kids .share-tile video {
 	width: 240px;
 	height: auto; /* keep the shared content's real aspect ratio */
+	aspect-ratio: auto; /* cancel the 4:3 box inherited from #kids video */
+	object-fit: contain; /* show the whole page, don't crop the top */
 	display: block;
 	background: #000;
 	border: 1px solid #2c3a59;
