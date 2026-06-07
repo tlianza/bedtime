@@ -72,10 +72,11 @@ link in another tab/device to test the viewer side.
 
 ## Deploy
 
-Put the App ID in `wrangler.jsonc` (`vars.REALTIME_APP_ID`) or as a secret, and set the
-secret:
+Set your App ID and Secret on the deployed Worker (they're account-specific and not
+committed to the repo), then deploy:
 
 ```bash
+npx wrangler secret put REALTIME_APP_ID
 npx wrangler secret put REALTIME_APP_SECRET
 npm run deploy
 ```
