@@ -17,6 +17,7 @@ const startBtn = document.getElementById('start')
 const book = document.getElementById('book') // screen-share video
 const bookpage = document.getElementById('bookpage') // synced page image
 const readerface = document.getElementById('readerface')
+const selfcam = document.getElementById('selfcam')
 const readeraudio = document.getElementById('readeraudio')
 const soundBtn = document.getElementById('soundbtn')
 const netbanner = document.getElementById('netbanner')
@@ -130,6 +131,7 @@ startBtn.onclick = async () => {
 			video: { facingMode: 'user' },
 			audio: true,
 		})
+		selfcam.srcObject = camMic // let the kid see themselves
 
 		await sfu.createSession()
 		await sfu.pushTracks([

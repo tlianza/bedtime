@@ -117,6 +117,16 @@ button:disabled {
 	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
 }
 
+/* The kid's own self-view sits in the opposite corner from the reader's face. */
+.pip-self {
+	right: auto;
+	left: 16px;
+	width: 16vw;
+	max-width: 150px;
+	min-width: 90px;
+	border-color: rgba(255, 255, 255, 0.35);
+}
+
 .overlay-start {
 	position: fixed;
 	inset: 0;
