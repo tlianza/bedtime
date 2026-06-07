@@ -4,6 +4,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<title>Bedtime Stories</title>
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="stylesheet" href="/style.css" />
 		<!-- Error + connection telemetry (Sentry, CDN loader — no build step).
 		     Session Replay is force-disabled: it would record the kids/book. -->
@@ -29,8 +30,8 @@
 				<h1>📖 Bedtime Stories</h1>
 				<p class="sub">Read to your kids from anywhere.</p>
 
-				<label for="room">Room name</label>
-				<input id="room" type="text" value="storytime" autocomplete="off" />
+				<label for="room">Room name <span class="muted">(we made one for you — change it if you like)</span></label>
+				<input id="room" type="text" placeholder="e.g. brave-otter" autocomplete="off" />
 
 				<button id="book">📚 Read from a book file (works on iPad)</button>
 				<button id="screen" class="secondary">🖥️ Read by sharing my screen (Mac/laptop)</button>
@@ -38,16 +39,40 @@
 				<p class="hint" id="screen-hint"></p>
 				<p class="hint">
 					Parents: start a room, then copy the kid link from the toolbar and send it.
+					Kids: just open the link a parent sent you.
 				</p>
 			</div>
 		</div>
 
-		<script>
+		<script type="module">
+			import { roomSlug, roomSecret } from '/room.js'
+
 			const roomInput = document.getElementById('room')
-			const slug = () => encodeURIComponent(roomInput.value.trim() || 'storytime')
-			document.getElementById('book').onclick = () => (location.href = `/book?room=${slug()}`)
-			document.getElementById('screen').onclick = () => (location.href = `/reader?room=${slug()}`)
-			document.getElementById('join').onclick = () => (location.href = `/viewer?room=${slug()}`)
+
+			// Pre-fill a fresh, collision-resistant room name so most parents never
+			// have to think about it. Generation is local (no network), so this is
+			// instant. They can still type their own.
+			if (!roomInput.value.trim()) roomInput.value = roomSlug()
+
+			// Parent starts a room: use the typed name or auto-generate a memorable
+			// slug, and mint a secret that rides in the link fragment (#k=...). The
+			// secret seals the room once someone's in it — see room.js / the Room DO.
+			const startReading = (page) => {
+				const room = encodeURIComponent(roomInput.value.trim() || roomSlug())
+				location.href = `/${page}?room=${room}#k=${roomSecret()}`
+			}
+			document.getElementById('book').onclick = () => startReading('book')
+			document.getElementById('screen').onclick = () => startReading('reader')
+
+			// Kids normally just open the link a parent sent (it carries the secret).
+			// This field is a fallback: paste a full link, or type a room name to join
+			// a room that no one's in yet.
+			document.getElementById('join').onclick = () => {
+				const v = roomInput.value.trim()
+				if (!v) return alert('Paste the link a parent sent you, or type the room name.')
+				if (/^https?:\/\//i.test(v) || v.startsWith('/r/') || v.startsWith('/viewer')) location.href = v
+				else location.href = `/r/${encodeURIComponent(v)}`
+			}
 
 			// Screen-share isn't available on iPad/iOS browsers — flag it.
 			if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {

@@ -46,6 +46,12 @@ export default {
 			return proxySFU(env, request, 'PUT', `/sessions/${m[1]}/renegotiate`)
 		}
 
+		// --- Short kid link: /r/<slug> serves the viewer page; the slug (and the
+		//     #k= secret in the fragment) are read client-side. ---
+		if (pathname.startsWith('/r/')) {
+			return env.ASSETS.fetch(new Request(new URL('/viewer', url), request))
+		}
+
 		// --- Static front-end ---
 		return env.ASSETS.fetch(request)
 	},

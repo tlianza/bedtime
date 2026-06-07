@@ -6,9 +6,9 @@
 
 import { SFUClient } from './sfu.js'
 import { connectRoom } from './room-client.js'
+import { readRoomConfig, viewerLink } from './room.js'
 
-const params = new URLSearchParams(location.search)
-const room = params.get('room') || 'storytime'
+const { room, secret } = readRoomConfig()
 
 const overlay = document.getElementById('overlay')
 const startBtn = document.getElementById('start')
@@ -27,7 +27,13 @@ sfu.onStatus = (m) => {
 	if (overlaySub) overlaySub.textContent = m
 }
 
-const me = { id: crypto.randomUUID(), role: 'reader', name: 'Reader', sessionId: null, tracks: ['screen', 'cam', 'mic'] }
+const me = { id: crypto.randomUUID(), role: 'reader', name: 'Reader', sessionId: null, tracks: ['screen', 'cam', 'mic'], secret }
+
+// The room name is already taken by someone else right now. Auto-generated slugs
+// make this rare; it's mainly for a hand-picked name that collides.
+function onRoomDenied() {
+	status.textContent = 'That room is in use right now — go back and start a new one (leave the name blank to auto-generate).'
+}
 let roomConn = null
 let lastParticipants = []
 const pulledViewers = new Map() // participantId -> sessionId we're pulling
@@ -119,10 +125,10 @@ startBtn.onclick = async () => {
 		])
 
 		me.sessionId = sfu.sessionId
-		roomConn = connectRoom(room, me, { onRoster: syncRoster })
+		roomConn = connectRoom(room, me, { onRoster: syncRoster, onDenied: onRoomDenied })
 
 		overlay.style.display = 'none'
-		linkInput.value = `${location.origin}/viewer?room=${encodeURIComponent(room)}`
+		linkInput.value = viewerLink(location.origin, room, secret)
 	} catch (err) {
 		console.error(err)
 		status.textContent = 'Error: ' + err.message

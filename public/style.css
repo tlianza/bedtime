@@ -254,6 +254,11 @@ button:disabled {
 	margin-top: 6px;
 }
 
+.muted {
+	color: #97a3bd;
+	font-weight: 400;
+}
+
 input[type='file'] {
 	width: 100%;
 	margin-top: 8px;

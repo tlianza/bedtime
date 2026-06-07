@@ -7,9 +7,9 @@
 
 import { SFUClient } from './sfu.js'
 import { connectRoom } from './room-client.js'
+import { readRoomConfig, viewerLink } from './room.js'
 
-const params = new URLSearchParams(location.search)
-const room = params.get('room') || 'storytime'
+const { room, secret } = readRoomConfig()
 const myId = crypto.randomUUID()
 
 const overlay = document.getElementById('overlay')
@@ -45,7 +45,13 @@ function setupMsg(text) {
 const sfu = new SFUClient()
 sfu.onStatus = setupMsg // show connection progress on the overlay
 
-const me = { id: crypto.randomUUID(), role: 'reader', name: 'Reader', sessionId: null, tracks: ['cam', 'mic'] }
+const me = { id: crypto.randomUUID(), role: 'reader', name: 'Reader', sessionId: null, tracks: ['cam', 'mic'], secret }
+
+// The room name is already in use by someone else right now (rare with
+// auto-generated slugs; mainly a hand-picked name that collides).
+function onRoomDenied() {
+	setupMsg('That room is in use right now — go back and start a new one (leave the name blank to auto-generate).')
+}
 let roomConn = null
 let lastParticipants = []
 const pulledViewers = new Map() // participantId -> sessionId we're pulling
@@ -223,10 +229,10 @@ startBtn.onclick = async () => {
 		])
 
 		me.sessionId = sfu.sessionId
-		roomConn = connectRoom(room, me, { onRoster: syncRoster })
+		roomConn = connectRoom(room, me, { onRoster: syncRoster, onDenied: onRoomDenied })
 
 		overlay.style.display = 'none'
-		linkInput.value = `${location.origin}/viewer?room=${encodeURIComponent(room)}`
+		linkInput.value = viewerLink(location.origin, room, secret)
 		await renderPage() // show + send the first page
 	} catch (err) {
 		console.error(err)

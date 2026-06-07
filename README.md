@@ -81,11 +81,29 @@ npx wrangler secret put REALTIME_APP_SECRET
 npm run deploy
 ```
 
-You'll get a `*.workers.dev` URL (or attach your own domain). Send the kids:
+You'll get a `*.workers.dev` URL (or attach your own domain). Open it, start a room,
+and copy the kid link from the toolbar to send — see **Room links** below.
+
+## Room links
+
+There's no login. Starting a room auto-generates a memorable id and a short secret, e.g.:
 
 ```
-https://<your-worker-url>/viewer.html?room=storytime
+https://<your-worker-url>/r/brave-otter#k=7qx2
 ```
+
+- The **`room` slug** (`brave-otter`) is just a human-readable handle; its only job is to
+  avoid two independent rooms colliding by accident. Two words from a curated list give
+  tens of thousands of combos, and a collision is harmless — the second party is told
+  "room in use" and regenerates.
+- The **`#k=` secret** is the access control. It rides in the URL *fragment*, so it never
+  reaches the server or shows up in logs. The Room admits the first person into an empty
+  room (and adopts their secret), then **seals** it: anyone joining an occupied room must
+  present the matching secret. So whoever has the link gets in; strangers who guess the
+  slug don't. The secret is forgotten once the room empties.
+
+This fits the usual "one reader + one kid" shape: the parent starts the room, sends the
+link, and no one else can wander in while they're reading.
 
 ## Reading a Kindle book
 
@@ -101,6 +119,8 @@ point a webcam at a physical copy, or share a PDF/photos of the pages instead.
       with a "Reconnecting…" banner).
 - [x] iOS audio-autoplay fallback ("Tap for sound") on the viewer.
 - [x] Reader screen-share self-preview ("What you're sharing").
-- [ ] Signed/expiring room links (the room name is currently the only access control).
+- [x] Login-free access control: auto-generated room ids + a secret in the link fragment;
+      the room seals to the first joiner (see **Room links**).
+- [ ] Expiring / rotating room links (the secret currently lasts as long as the room is in use).
 - [ ] Mute/camera toggle buttons; a "raise hand" or page-turn ping would be cute.
 - [ ] Tidy dead transceivers that accumulate across many reconnects (cosmetic).

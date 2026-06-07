@@ -14,6 +14,7 @@ export class Room {
 		this.env = env
 		this.peers = new Map() // Map<WebSocket, participant>
 		this.currentPage = null // { dataUrl, index } — latest page the reader sent
+		this.secret = null // access token; set by the first joiner, cleared when empty
 	}
 
 	async fetch(request) {
@@ -35,6 +36,29 @@ export class Room {
 			}
 
 			if (msg.type === 'join') {
+				// Access control (login-free, trust-on-first-use):
+				//   empty room        -> admit, and adopt this joiner's secret
+				//   secret matches     -> admit (any role; e.g. a kid's 2nd device)
+				//   no/wrong secret    -> admit only if this ROLE slot is still open
+				//                         (so the first kid can join a freshly-started
+				//                         room without the link), else refuse.
+				// This keeps the usual "one reader + one viewer" open while blocking
+				// a stranger from taking an already-filled seat.
+				const provided = msg.secret || null
+				if (this.peers.size === 0) {
+					this.secret = provided
+				} else if (provided !== this.secret) {
+					const roleTaken = [...this.peers.values()].some((p) => p.role === msg.role)
+					if (roleTaken) {
+						this.sendTo(server, { type: 'denied', reason: 'role-taken' })
+						try {
+							server.close(4001, 'role-taken')
+						} catch {
+							// already gone
+						}
+						return
+					}
+				}
 				this.peers.set(server, {
 					id: msg.id,
 					role: msg.role, // 'reader' | 'viewer'
@@ -55,6 +79,8 @@ export class Room {
 
 		const drop = () => {
 			if (this.peers.delete(server)) this.broadcastRoster()
+			// Room emptied: forget the secret so the next arrival re-claims it.
+			if (this.peers.size === 0) this.secret = null
 		}
 		server.addEventListener('close', drop)
 		server.addEventListener('error', drop)

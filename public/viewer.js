@@ -8,9 +8,9 @@
 
 import { SFUClient } from './sfu.js'
 import { connectRoom } from './room-client.js'
+import { readRoomConfig } from './room.js'
 
-const params = new URLSearchParams(location.search)
-const room = params.get('room') || 'storytime'
+const { room, secret } = readRoomConfig()
 
 const overlay = document.getElementById('overlay')
 const startBtn = document.getElementById('start')
@@ -29,7 +29,7 @@ sfu.onStatus = (m) => {
 
 // Identity stays stable across reconnects; only sessionId changes. room-client
 // re-announces this object (by reference) whenever the signaling socket opens.
-const me = { id: crypto.randomUUID(), role: 'viewer', name: 'Kid', sessionId: null, tracks: ['cam', 'mic'] }
+const me = { id: crypto.randomUUID(), role: 'viewer', name: 'Kid', sessionId: null, tracks: ['cam', 'mic'], secret }
 let roomConn = null
 let lastParticipants = []
 let currentReaderSession = null // sessionId of the reader we're currently pulling
@@ -145,6 +145,11 @@ startBtn.onclick = async () => {
 					bookpage.src = msg.dataUrl
 					showPageBook()
 				}
+			},
+			onDenied: () => {
+				overlay.style.display = 'flex'
+				overlay.querySelector('.sub').textContent =
+					'Someone is already watching in this room — ask a parent for the link they sent.'
 			},
 		})
 
