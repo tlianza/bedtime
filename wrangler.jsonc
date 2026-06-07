@@ -17,7 +17,16 @@
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "Room" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+
+  // Observability: keep automatic per-request invocation logs, but don't
+  // persist console.log output (logs.enabled false).
+  "observability": {
+    "logs": {
+      "enabled": false,
+      "invocation_logs": true
+    }
+  },
 
   // Credentials are NOT committed here — they're account-specific.
   //   Production: set both with `wrangler secret put`:
