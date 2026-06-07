@@ -18,6 +18,7 @@ const screenpreview = document.getElementById('screenpreview')
 const shareTile = document.getElementById('share-tile')
 const linkInput = document.getElementById('viewerlink')
 const copyBtn = document.getElementById('copy')
+const reshareBtn = document.getElementById('reshare')
 const status = document.getElementById('status')
 const netbanner = document.getElementById('netbanner')
 
@@ -101,6 +102,36 @@ sfu.onReconnected = (newSessionId) => {
 	syncRoster(lastParticipants)
 }
 
+// Wire a freshly-captured screen share into the self-preview, and reveal the
+// "Share screen again" button if/when it ends (browser "Stop sharing" or our
+// own button). Returns the screen video track.
+function attachShare(display) {
+	const track = display.getVideoTracks()[0]
+	screenpreview.srcObject = display
+	shareTile.hidden = false
+	reshareBtn.hidden = true
+	track.addEventListener('ended', () => {
+		shareTile.hidden = true
+		reshareBtn.hidden = false
+	})
+	return track
+}
+
+// Re-acquire the screen and swap it into the live connection (no renegotiation),
+// so the kids keep watching seamlessly after a stop.
+reshareBtn.onclick = async () => {
+	reshareBtn.disabled = true
+	try {
+		const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+		await sfu.replacePushedTrack('screen', attachShare(display))
+	} catch (err) {
+		console.error(err) // usually just the user cancelling the picker
+		reshareBtn.hidden = false
+	} finally {
+		reshareBtn.disabled = false
+	}
+}
+
 startBtn.onclick = async () => {
 	startBtn.disabled = true
 	try {
@@ -108,18 +139,12 @@ startBtn.onclick = async () => {
 		const camMic = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 		selfcam.srcObject = camMic
 		const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-		// Show what you're sharing back to yourself so you can read along.
-		screenpreview.srcObject = display
-		shareTile.hidden = false
-		// If you stop sharing (browser "Stop sharing" button), hide the preview.
-		display.getVideoTracks()[0].addEventListener('ended', () => {
-			shareTile.hidden = true
-		})
+		const screenTrack = attachShare(display)
 
 		status.textContent = 'Connecting…'
 		await sfu.createSession()
 		await sfu.pushTracks([
-			{ track: display.getVideoTracks()[0], name: 'screen' },
+			{ track: screenTrack, name: 'screen' },
 			{ track: camMic.getVideoTracks()[0], name: 'cam' },
 			{ track: camMic.getAudioTracks()[0], name: 'mic' },
 		])

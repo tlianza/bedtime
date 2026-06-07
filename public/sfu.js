@@ -23,6 +23,7 @@ export class SFUClient {
 		this.onReconnected = null
 
 		this._pushed = [] // tracks we've pushed, so we can re-push on reconnect
+		this._senderByName = new Map() // track name -> RTCRtpSender, for replaceTrack
 		this._connectedOnce = false // only auto-reconnect after the first success
 		this._reconnecting = false
 		this._reconnectTimer = null
@@ -107,6 +108,8 @@ export class SFUClient {
 		const transceivers = tracks.map((t) =>
 			this.pc.addTransceiver(t.track, { direction: 'sendonly' })
 		)
+		// Remember each sender by track name so we can swap its track later (re-share).
+		this._senderByName = new Map(tracks.map((t, i) => [t.name, transceivers[i].sender]))
 		await this.pc.setLocalDescription(await this.pc.createOffer())
 
 		this._status('Negotiating audio/video…')
@@ -124,6 +127,17 @@ export class SFUClient {
 		await this._waitConnected()
 		this._connectedOnce = true
 		this._status('Connected ✓')
+	}
+
+	// Swap the outgoing media for an already-pushed track name (e.g. re-share the
+	// screen after stopping) without renegotiation. Also updates the remembered
+	// track so an automatic reconnect re-pushes the current one.
+	async replacePushedTrack(name, newTrack) {
+		const sender = this._senderByName.get(name)
+		if (!sender) throw new Error('no pushed track named "' + name + '"')
+		await sender.replaceTrack(newTrack)
+		const entry = this._pushed.find((t) => t.name === name)
+		if (entry) entry.track = newTrack
 	}
 
 	_scheduleReconnect() {
